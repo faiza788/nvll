@@ -1,149 +1,412 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Image from "next/image";
+import { useRef } from "react";
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
 
-const HERO_IMAGE = "https://images.unsplash.com/photo-1523398002811-999ca8dec234?w=1400";
-const STRIP_COUNT = 8;
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+const IMAGE_URL = "/hero-model.png";
+const STRIPS = 8;
+const STRIP_PCT = 100 / STRIPS;
 
 export default function HeroSection() {
-  const stripRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const sectionRef = useRef<HTMLElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
+  const bottomLeftRef = useRef<HTMLDivElement>(null);
+  const bottomRightRef = useRef<HTMLDivElement>(null);
+  const wordRefs = useRef<(HTMLSpanElement | null)[]>([null, null, null, null]);
 
-  useEffect(() => {
-    const strips = stripRefs.current.filter(Boolean);
-    gsap.fromTo(
-      strips,
-      { clipPath: "inset(0 0 100% 0)" },
-      {
-        clipPath: "inset(0 0 0% 0)",
-        stagger: 0.08,
-        ease: "power3.out",
-        duration: 1.4,
-        delay: 0.2,
+  useGSAP(
+    () => {
+      const header = document.querySelector("header");
+      const strips = sectionRef.current?.querySelectorAll(".hero-strip");
+      const words = wordRefs.current.filter(Boolean) as HTMLSpanElement[];
+      const bottomEls = [bottomLeftRef.current, bottomRightRef.current].filter(
+        Boolean
+      ) as HTMLElement[];
+
+      // ── Set from-states immediately before first paint ────────────────
+      if (header) gsap.set(header, { opacity: 0 });
+      if (strips?.length) gsap.set(strips, { scaleY: 0 });
+      if (words.length) gsap.set(words, { opacity: 0, y: 30 });
+      if (buttonsRef.current) gsap.set(buttonsRef.current, { opacity: 0, y: 20 });
+      if (bottomEls.length) gsap.set(bottomEls, { opacity: 0 });
+
+      const tl = gsap.timeline();
+
+      // Step 1 (t=0): navbar fade-in + strip reveal
+      if (header) {
+        tl.to(header, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
       }
-    );
-  }, []);
+      if (strips?.length) {
+        tl.to(
+          strips,
+          { scaleY: 1, stagger: 0.08, duration: 0.85, ease: "power3.out" },
+          0
+        );
+      }
+
+      // Step 2 (t=1.3): model slides down
+      if (imageContainerRef.current) {
+        tl.to(
+          imageContainerRef.current,
+          { y: 90, duration: 0.9, ease: "power2.inOut" },
+          1.3
+        );
+      }
+
+      // Step 3 (t=1.8): headline words stagger in
+      if (words.length) {
+        tl.to(
+          words,
+          { opacity: 1, y: 0, duration: 0.5, stagger: 0.18, ease: "power2.out" },
+          1.8
+        );
+      }
+
+      // Step 4 (t=2.8): buttons appear
+      if (buttonsRef.current) {
+        tl.to(
+          buttonsRef.current,
+          { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+          2.8
+        );
+      }
+
+      // Step 5 (t=3.0): bottom elements
+      if (bottomEls.length) {
+        tl.to(
+          bottomEls,
+          { opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out" },
+          3.0
+        );
+      }
+
+      // Parallax
+      tl.call(() => {
+        if (!imageContainerRef.current || !sectionRef.current) return;
+        const baseY = 90;
+        ScrollTrigger.create({
+          trigger: sectionRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: true,
+          onUpdate: (self) => {
+            gsap.set(imageContainerRef.current, {
+              y: baseY + self.progress * window.innerHeight * 0.3,
+            });
+          },
+        });
+      });
+    },
+    { scope: sectionRef }
+  );
 
   return (
-    <section className="relative h-screen w-full overflow-hidden">
-      {/* SVG radial line pattern */}
+    <section
+      ref={sectionRef}
+      className="relative w-full"
+      style={{ height: "100%", backgroundColor: "#F5F2EC" }}
+    >
+      {/* ── Radial starburst SVG ──────────────────────────────────────── */}
       <svg
-        className="absolute inset-0 w-full h-full pointer-events-none z-10"
-        style={{ opacity: 0.06 }}
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ opacity: 0.05, zIndex: 1 }}
+        viewBox="0 0 800 800"
         preserveAspectRatio="xMidYMid slice"
       >
-        <defs>
-          <radialGradient id="rg" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="#1C1C1C" stopOpacity="1" />
-            <stop offset="100%" stopColor="#1C1C1C" stopOpacity="0" />
-          </radialGradient>
-          <pattern id="lines" patternUnits="userSpaceOnUse" width="40" height="40">
-            <line x1="0" y1="0" x2="40" y2="40" stroke="#1C1C1C" strokeWidth="0.5" />
-            <line x1="40" y1="0" x2="0" y2="40" stroke="#1C1C1C" strokeWidth="0.5" />
-          </pattern>
-          <mask id="radialMask">
-            <rect width="100%" height="100%" fill="url(#rg)" />
-          </mask>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#lines)" mask="url(#radialMask)" />
+        <g transform="translate(400,400)" stroke="#1C1C1C" strokeWidth="0.5">
+          {Array.from({ length: 60 }, (_, i) => {
+            const angle = (i * 360) / 60;
+            const rad = (angle * Math.PI) / 180;
+            return (
+              <line
+                key={i}
+                x1={0}
+                y1={0}
+                x2={Math.cos(rad) * 800}
+                y2={Math.sin(rad) * 800}
+              />
+            );
+          })}
+        </g>
       </svg>
 
-      {/* Image strips */}
-      {Array.from({ length: STRIP_COUNT }, (_, i) => {
-        const top = i * (100 / STRIP_COUNT);
-        const bottom = 100 - (i + 1) * (100 / STRIP_COUNT);
-        return (
-          <div
-            key={i}
-            className="absolute inset-0"
-            style={{ clipPath: `inset(${top}% 0 ${bottom}% 0)` }}
-          >
-            <div
-              ref={(el) => { stripRefs.current[i] = el; }}
-              className="w-full h-full"
-              style={{ clipPath: "inset(0 0 100% 0)" }}
-            >
-              <Image
-                src={HERO_IMAGE}
-                alt="NVLL hero"
-                fill
-                className="object-cover object-center"
-                unoptimized
-                priority
-              />
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-black/20 z-20" />
-
-      {/* Content */}
-      <div className="absolute inset-0 z-30 flex flex-col justify-center px-12 md:px-20">
-        <h1
-          className="text-white leading-none tracking-tight"
+      {/* ── Model image — 8 animated strips, centered ─────────────────── */}
+      {/*   Centering wrapper: flex center, GSAP targets the inner div    */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: "flex",
+          justifyContent: "center",
+          zIndex: 5,
+          isolation: "isolate",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          ref={imageContainerRef}
           style={{
-            fontFamily: "var(--font-cormorant)",
-            fontSize: "clamp(64px, 9vw, 120px)",
-            fontWeight: 300,
+            position: "relative",
+            width: 400,
+            height: "75vh",
+            willChange: "transform",
           }}
         >
-          WEAR NOTHING.
-          <br />
-          WEAR NVLL.
-        </h1>
-        <div className="flex gap-4 mt-10">
-          <a
-            href="#"
-            className="px-8 py-4 bg-white text-[#1C1C1C] text-xs tracking-[0.2em] hover:bg-[#F5F2EC] transition-colors duration-200"
-            style={{ fontFamily: "var(--font-inter)" }}
-          >
-            SHOP NOW
-          </a>
-          <a
-            href="#"
-            className="px-8 py-4 border border-white text-white text-xs tracking-[0.2em] hover:bg-white/10 transition-colors duration-200"
-            style={{ fontFamily: "var(--font-inter)" }}
-          >
-            EXPLORE ALL
-          </a>
+          {Array.from({ length: STRIPS }, (_, i) => (
+            <div
+              key={i}
+              className="hero-strip"
+              style={{
+                position: "absolute",
+                top: `${i * STRIP_PCT}%`,
+                width: "100%",
+                height: `${STRIP_PCT}%`,
+                overflow: "hidden",
+                transformOrigin: "center center",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={IMAGE_URL}
+                alt=""
+                style={{
+                  position: "absolute",
+                  top: `${-i * 100}%`,
+                  left: 0,
+                  width: "100%",
+                  height: "800%",
+                  objectFit: "contain",
+                  objectPosition: "center top",
+                  mixBlendMode: "multiply",
+                  display: "block",
+                  userSelect: "none",
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Bottom left: avatars + caption */}
-      <div className="absolute bottom-8 left-12 md:left-20 z-30 flex items-center gap-3">
-        <div className="flex -space-x-2">
-          {[1, 2, 3].map((n) => (
+      {/* ── Headline + buttons — top center ───────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          top: "13%",
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 28,
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: "var(--font-inter)",
+            fontSize: 68,
+            fontWeight: 900,
+            color: "#1C1C1C",
+            lineHeight: 1.0,
+            letterSpacing: "-0.02em",
+            margin: 0,
+            textTransform: "uppercase",
+          }}
+        >
+          <div>
+            <span
+              ref={(el) => { wordRefs.current[0] = el; }}
+              style={{ display: "inline-block", marginRight: "0.2em" }}
+            >
+              GEAR UP
+            </span>
+            <span
+              ref={(el) => { wordRefs.current[1] = el; }}
+              style={{ display: "inline-block" }}
+            >
+              EVERY SEASON
+            </span>
+          </div>
+          <div>
+            <span
+              ref={(el) => { wordRefs.current[2] = el; }}
+              style={{ display: "inline-block", marginRight: "0.2em" }}
+            >
+              EVERY
+            </span>
+            <span
+              ref={(el) => { wordRefs.current[3] = el; }}
+              style={{ display: "inline-block" }}
+            >
+              WORKOUT!
+            </span>
+          </div>
+        </h1>
+
+        {/* Pill buttons */}
+        <div ref={buttonsRef} style={{ display: "flex", gap: 16 }}>
+          <button
+            style={{
+              backgroundColor: "#1C1C1C",
+              color: "#FFFFFF",
+              border: "none",
+              padding: "14px 36px",
+              borderRadius: 999,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              fontFamily: "var(--font-inter)",
+              cursor: "pointer",
+            }}
+          >
+            SHOP NOW
+          </button>
+          <button
+            style={{
+              backgroundColor: "#FFFFFF",
+              color: "#1C1C1C",
+              border: "1.5px solid #1C1C1C",
+              padding: "14px 36px",
+              borderRadius: 999,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              fontFamily: "var(--font-inter)",
+              cursor: "pointer",
+            }}
+          >
+            EXPLORE ALL
+          </button>
+        </div>
+      </div>
+
+      {/* ── Bottom-left: avatars + paragraph ──────────────────────────── */}
+      <div
+        ref={bottomLeftRef}
+        style={{
+          position: "absolute",
+          bottom: 32,
+          left: 40,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+        }}
+      >
+        {/* Stacked avatar circles */}
+        <div style={{ display: "flex", flexShrink: 0, marginTop: 2 }}>
+          {["#C4B5A0", "#A89880", "#8A7A6A"].map((color, n) => (
             <div
               key={n}
-              className="w-8 h-8 rounded-full border-2 border-white bg-[#8A8680]"
-              style={{ zIndex: 3 - n }}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                backgroundColor: color,
+                border: "2px solid #F5F2EC",
+                marginLeft: n === 0 ? 0 : -8,
+                position: "relative",
+              }}
             />
           ))}
         </div>
+
         <p
-          className="text-white text-xs tracking-[0.1em]"
-          style={{ fontFamily: "var(--font-inter)" }}
+          style={{
+            fontFamily: "var(--font-inter)",
+            fontSize: 11,
+            lineHeight: 1.55,
+            color: "#8A8680",
+            margin: 0,
+            maxWidth: 160,
+          }}
         >
-          10,000+ drops claimed
+          Stay cozy without compromising your range of motion. Our winter range
+          is perfect for those chilly outdoor workouts.
         </p>
       </div>
 
-      {/* Bottom right: video card */}
-      <div className="absolute bottom-8 right-12 md:right-20 z-30">
-        <div className="bg-[#1C1C1C]/90 rounded-2xl px-5 py-4 flex items-center gap-4 border border-white/10 backdrop-blur-sm">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-              <polygon points="5,3 19,12 5,21" />
+      {/* ── Bottom-right: lookbook card with shoe thumbnail ───────────── */}
+      <div
+        ref={bottomRightRef}
+        style={{
+          position: "absolute",
+          bottom: 32,
+          right: 40,
+          zIndex: 20,
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "#1C1C1C",
+            borderRadius: 16,
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          {/* Shoe thumbnail */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200"
+            alt="Product"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 8,
+              objectFit: "cover",
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Play button */}
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: "rgba(255,255,255,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+              <polygon points="6,3 20,12 6,21" />
             </svg>
           </div>
+
           <div>
-            <p className="text-white text-xs tracking-[0.15em]" style={{ fontFamily: "var(--font-inter)" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-inter)",
+                fontSize: 11,
+                letterSpacing: "0.18em",
+                color: "#FFFFFF",
+                margin: 0,
+                lineHeight: 1,
+              }}
+            >
               WATCH LOOKBOOK
             </p>
-            <p className="text-[#8A8680] text-xs mt-0.5" style={{ fontFamily: "var(--font-inter)" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-inter)",
+                fontSize: 10,
+                letterSpacing: "0.1em",
+                color: "#8A8680",
+                margin: "4px 0 0",
+              }}
+            >
               FW 2025
             </p>
           </div>

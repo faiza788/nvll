@@ -17,9 +17,26 @@ export default function Home() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <Navbar />
+      {/* ── Outer page background ──────────────────────────────────────── */}
+      <div style={{ backgroundColor: "#E8E4DC" }}>
+        {/* ── Hero card: contains navbar + hero ─────────────────────────── */}
+        <div
+          style={{
+            margin: 12,
+            borderRadius: 20,
+            backgroundColor: "#F5F2EC",
+            border: "1px solid rgba(255,255,255,0.6)",
+            overflow: "hidden",
+            position: "relative",
+            height: "calc(100vh - 24px)",
+          }}
+        >
+          <Navbar />
+          <HeroSection />
+        </div>
+      </div>
+
       <main>
-        <HeroSection />
         <UndergroundSection />
         <TopPicksSection />
         <FitsCarousel />
